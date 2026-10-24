@@ -744,6 +744,47 @@ class HumanFriendlyTestCase(TestCase):
         self.assertEqual(split('foo, bar, baz'), ['foo', 'bar', 'baz'])
         self.assertEqual(split('foo,bar,baz'), ['foo', 'bar', 'baz'])
 
+    def test_timer_epoch_start(self):
+        """An explicit epoch start uses the wall clock, including zero."""
+        with PatchedAttribute(time, 'time', lambda: 12.5):
+            for start in (0, 0.0, -2.0, 2.0):
+                timer = Timer(start_time=start)
+                self.assertFalse(timer.monotonic)
+                self.assertEqual(timer.elapsed_time, 12.5 - start)
+
+    def test_timer_zero_monotonic_start(self):
+        """A zero monotonic reading remains an active timer."""
+        with PatchedItem(Timer.__init__.__globals__, 'monotonic', lambda: 0.0):
+            automatic = Timer()
+            resumable = Timer(resumable=True)
+            resumable.__enter__()
+        with PatchedItem(Timer.__init__.__globals__, 'monotonic', lambda: 2.5):
+            self.assertEqual(automatic.elapsed_time, 2.5)
+            self.assertEqual(resumable.elapsed_time, 2.5)
+            resumable.__exit__(None, None, None)
+            self.assertEqual(resumable.elapsed_time, 2.5)
+        with PatchedItem(Timer.__init__.__globals__, 'monotonic', lambda: 4.0):
+            self.assertEqual(resumable.elapsed_time, 2.5)
+
+    def test_timer_inactive_and_resumed(self):
+        """Paused timers stay fixed and resume accumulating elapsed time."""
+        with PatchedItem(Timer.__init__.__globals__, 'monotonic', lambda: 5.0):
+            timer = Timer(resumable=True)
+            self.assertEqual(timer.elapsed_time, 0)
+            timer.__exit__(None, None, None)
+            self.assertEqual(timer.elapsed_time, 0)
+            self.assertIs(timer.__enter__(), timer)
+        with PatchedItem(Timer.__init__.__globals__, 'monotonic', lambda: 7.0):
+            timer.__exit__(None, None, None)
+            self.assertEqual(timer.elapsed_time, 2.0)
+            timer.__exit__(None, None, None)
+            self.assertEqual(timer.elapsed_time, 2.0)
+            timer.__enter__()
+        with PatchedItem(Timer.__init__.__globals__, 'monotonic', lambda: 10.0):
+            self.assertEqual(timer.elapsed_time, 5.0)
+            timer.__exit__(None, None, None)
+            self.assertEqual(timer.elapsed_time, 5.0)
+
     def test_timer(self):
         """Test :func:`humanfriendly.Timer`."""
         for seconds, text in ((1, '1 second'),
