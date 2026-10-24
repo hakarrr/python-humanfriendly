@@ -656,9 +656,9 @@ class Timer(object):
         if resumable:
             self.monotonic = True
             self.resumable = True
-            self.start_time = 0.0
+            self.start_time = None
             self.total_time = 0.0
-        elif start_time:
+        elif start_time is not None:
             self.monotonic = False
             self.resumable = False
             self.start_time = start_time
@@ -687,9 +687,9 @@ class Timer(object):
         """
         if not self.resumable:
             raise ValueError("Timer is not resumable!")
-        if self.start_time:
+        if self.start_time is not None:
             self.total_time += monotonic() - self.start_time
-            self.start_time = 0.0
+            self.start_time = None
 
     def sleep(self, seconds):
         """
@@ -725,7 +725,7 @@ class Timer(object):
         elapsed_time = 0
         if self.resumable:
             elapsed_time += self.total_time
-        if self.start_time:
+        if self.start_time is not None:
             current_time = monotonic() if self.monotonic else time.time()
             elapsed_time += current_time - self.start_time
         return elapsed_time
