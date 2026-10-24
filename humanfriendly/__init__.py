@@ -618,7 +618,7 @@ def format_path(pathname):
     home = os.environ.get('HOME')
     if home:
         home = os.path.abspath(home)
-        if pathname.startswith(home):
+        if pathname == home or pathname.startswith(os.path.join(home, '')):
             pathname = os.path.join('~', os.path.relpath(pathname, home))
     return pathname
 
