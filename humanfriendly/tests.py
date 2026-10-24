@@ -591,6 +591,37 @@ class HumanFriendlyTestCase(TestCase):
         absolute_path = os.path.join(os.environ['HOME'], '.vimrc')
         self.assertEqual(friendly_path, format_path(absolute_path))
 
+    def test_format_path_home_boundaries(self):
+        """Only abbreviate complete home directory components."""
+        home = os.path.abspath(os.path.join(os.sep, 'home', 'user'))
+        cases = [
+            (home, os.path.join('~', '.')),
+            (os.path.join(home, 'file'), os.path.join('~', 'file')),
+            (os.path.join(home, 'nested', 'file'), os.path.join('~', 'nested', 'file')),
+            (home + 'name', home + 'name'),
+            (os.path.join(home + '-backup', 'file'), os.path.join(home + '-backup', 'file')),
+            (os.path.join(home + '.old', 'file'), os.path.join(home + '.old', 'file')),
+            (os.path.dirname(home), os.path.dirname(home)),
+            (os.path.join(home, '..', 'other'), os.path.join(os.path.dirname(home), 'other')),
+        ]
+        for configured_home in (home, home + os.sep):
+            with PatchedItem(os.environ, 'HOME', configured_home):
+                for pathname, expected in cases:
+                    self.assertEqual(expected, format_path(pathname))
+
+    def test_format_path_root_home(self):
+        """A filesystem root home still contains its descendants."""
+        home = os.path.abspath(os.sep)
+        with PatchedItem(os.environ, 'HOME', home):
+            self.assertEqual(os.path.join('~', '.'), format_path(home))
+            self.assertEqual(os.path.join('~', 'file'), format_path(os.path.join(home, 'file')))
+
+    def test_format_path_without_home(self):
+        """An empty home does not abbreviate an absolute pathname."""
+        pathname = os.path.abspath(os.path.join(os.sep, 'home', 'user', 'file'))
+        with PatchedItem(os.environ, 'HOME', ''):
+            self.assertEqual(pathname, format_path(pathname))
+
     def test_parse_path(self):
         """Test :func:`humanfriendly.parse_path()`."""
         friendly_path = os.path.join('~', '.vimrc')
